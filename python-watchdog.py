@@ -1,8 +1,12 @@
 import os
 import json
 import time
+from datetime import datetime
+
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
+
+from stackMap.node import Node
 
 CONFIG_FILE_PATH = os.path.dirname(os.path.abspath(__file__)) + '/config.json'
 
@@ -12,14 +16,12 @@ def main():
         config = json.load(configFile)
 
     if config:
-        startMonitoring(config)
+        start_monitoring(config)
     else:
-        print(
-            "Can't load configuration information. Check config.json in this directory for typos. If config.json does "
-            "not exist, that's the problem.")
+        print("Can't load configuration information")
 
 
-def startMonitoring(config):
+def start_monitoring(config):
     observer = Observer()
     observer.schedule(MyHandler(config), config['directoryToWatch'], recursive=False)
     observer.start()
@@ -39,40 +41,53 @@ class MyHandler(PatternMatchingEventHandler):
 
     def __init__(self, config):
         PatternMatchingEventHandler.__init__(self)
-        self.nodes = []
+        self.coalesced_node = None
+        self.content = ""
+        self.nodes = {}
         self.config = config
         self.counter = 0
 
     def on_modified(self, event):
-        self.do_something(event)
-        with open("out/eventOut{0}.json".format(self.counter), "w") as event_out_file:
-            self.counter += 1
-            print(self.counter)
-            json.dump(self.nodes, event_out_file, indent=4)
+        with open(event.src_path) as in_file:
+            root_node = self.parse_file_to_nodes(in_file)
+        if root_node is None:
+            return
+        self.write_node_to_file(root_node)
 
-    def on_created(self, event):
-        print("[Sending Email] Created: %s" % (event.src_path))
-        self.do_something(event)
+    def write_node_to_file(self, root_node):
+        out_name = "out/eventOut{0}.json".format(self.counter)
+        self.counter += 1
+        with open(out_name, "w") as event_out_file:
+            json.dump(root_node, event_out_file, indent=4)
+        self.coalesced_node = Node.merge_nodes(self.coalesced_node, root_node)
+        coalesced_name = "out/coalesced.json"
+        with open(coalesced_name, "w") as coalesced_file:
+            json.dump(self.coalesced_node, coalesced_file, indent=4)
 
-    def on_moved(self, event):
-        pass
+    def parse_file_to_nodes(self, file):
+        content = file.read()
+        if self.content == content:
+            return None
+        self.content = content
+        splitlines = content.splitlines()
+        splitlines.reverse()
+        root = Node("root")
+        previous = root
+        for line in splitlines:
+            try:
+                current = self.parse_line_to_node(line)
+                previous.add_child(current)
+                previous = current
+            except IndexError:
+                pass
+        return root
 
-    def on_deleted(self, event):
-        pass
-
-    def do_something(self, event):
-        with open(event.src_path) as f:
-            # content = f.read()
-            for line in f:
-                self.parse_line_to_node(line)
-
-    def parse_line_to_node(self, line):
+    @staticmethod
+    def parse_line_to_node(line):
         one = line.split("(")[0].split(".")
-        try:
-            class_and_method = one[-2] + "#" + one[-1]
-            self.nodes.append(class_and_method)
-        except IndexError:
-            pass
+        name = one[-2] + "#" + one[-1]
+        return Node(name)
+
 
 if __name__ == '__main__':
     main()

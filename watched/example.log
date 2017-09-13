@@ -1,3 +1,4 @@
+    at org.neo4j.kernel.impl.query.NoQueryEngine.two(NoQueryEngine.java:56)
     at org.neo4j.kernel.impl.query.NoQueryEngine.noQueryEngine(NoQueryEngine.java:56)
     at org.neo4j.kernel.impl.query.NoQueryEngine.executeQuery(NoQueryEngine.java:33)
     at org.neo4j.kernel.impl.factory.GraphDatabaseFacade.execute(GraphDatabaseFacade.java:333)
@@ -6,5 +7,4 @@
     at com.greenspector.plugins.eclipse.greenspectorplugin.Activator.start(Activator.java:222)
     at org.eclipse.osgi.internal.framework.BundleContextImpl$3.run(BundleContextImpl.java:771)
     at org.eclipse.osgi.internal.framework.BundleContextImpl$3.run(BundleContextImpl.java:1)
-
-     d 
+                
